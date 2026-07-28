@@ -1,0 +1,16 @@
+# 环境变量和密钥
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# 编辑器
+.vscode/
+.idea/
+
+# 本地模型
+models/
