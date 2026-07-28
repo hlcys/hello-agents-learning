@@ -13,12 +13,12 @@ class MySimpleAgent(SimpleAgent):
         self,
         name: str,
         llm: HelloAgentsLLM,
-        sysytem_prompt: Optional[str] = None,
+        system_prompt: Optional[str] = None,
         config: Optional[Config] = None,
         tool_registry: Optional['ToolRegistry'] = None,
         enable_tool_calling: bool = True      
     ):
-        super().__init__(name, llm, sysytem_prompt, config)
+        super().__init__(name, llm, system_prompt, config)
         self.tool_registry = tool_registry
         self.enable_tool_calling = enable_tool_calling and tool_registry is not None
         print(f"✅ {name} 初始化完成，工具调用: {'启用' if self.enable_tool_calling else '禁用'}")
@@ -29,7 +29,7 @@ class MySimpleAgent(SimpleAgent):
         input_text: str,
         max_tool_iterations: int = 3, **kwargs
     ):
-        print(f" {self.name} 正在处理: {input_text}")
+        print(f"🤖 {self.name} 正在处理: {input_text}")
 
         messages = []
 
@@ -208,7 +208,7 @@ class MySimpleAgent(SimpleAgent):
         """
         流式运行方法
         """
-        print(f" {self.name} 开始流式处理: {input_text}")
+        print(f"🌊 {self.name} 开始流式处理: {input_text}")
 
         messages = []
 
@@ -218,7 +218,7 @@ class MySimpleAgent(SimpleAgent):
                 "content": self.system_prompt
             })
 
-        for msg in self.history:
+        for msg in self._history:
             messages.append({
                 "role": msg.role,
                 "content": msg.content
@@ -231,17 +231,17 @@ class MySimpleAgent(SimpleAgent):
 
         # 流式调用 llm (服务器边生成边返回)
         full_response = ""
-        print(" 实时响应:  ", end = "")
+        print("📝实时响应:  ", end = "")
 
         for chunk in self.llm.stream_invoke(messages, **kwargs):
             full_response += chunk
-            print(chunk, end = "", flush = True)
+            # print(chunk, end = "", flush = True)
             yield chunk # yield 不中断，实时返回
 
         print() 
 
-        self.add_messages(Message(input_text, "user"))
-        self.add_messages(Message(full_response, "assistant"))
+        self.add_message(Message(input_text, "user"))
+        self.add_message(Message(full_response, "assistant"))
         print(f" {self.name} 流式调用完成")
 
 
@@ -253,10 +253,10 @@ class MySimpleAgent(SimpleAgent):
             self.enable_tool_calling = True
 
         self.tool_registry.register_tool(tool)
-        print(f" 工具 '{tool_name}' 已添加")
+        print(f" 工具 '{tool.name}' 已添加")
 
 
-    def has_tool(self) -> bool:
+    def has_tools(self) -> bool:
         """检查是否有可用工具"""
         return self.enable_tool_calling and self.tool_registry is not None
 
