@@ -55,7 +55,7 @@ class ToolRegistry:
     def to_openai_schema(self) -> Dict[str, Any]:
         """转换为 OpenAI function calling schema 格式
 
-        用于 FunctionCallAgent，使工具能够被 OpenAI 原生 function calling 使用
+        用于 FunctionCallAgent, 使工具能够被 OpenAI 原生 function calling 使用
 
         Returns:
             符合 OpenAI function calling 标准的 schema
