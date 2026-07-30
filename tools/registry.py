@@ -1,7 +1,11 @@
 # /tool/registry
 
-from typing import Any, Callable, Dict, Optional
-from .base  import Tool
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable, Dict
+
+if TYPE_CHECKING:
+    from .base import Tool
 
 class ToolRegistry:
     """HelloAgents 工具注册表
@@ -43,14 +47,40 @@ class ToolRegistry:
         descriptions = []
 
         # tool 对象描述
-        for tool in self._tools_values():
+        for tool in self._tools.values():
             descriptions.append(f"- {tool.name}: {tool.description}")
 
         # tool 函数描述
         for name, info in self._functions.items():
             descriptions.append(f"- {name}: {info['description']}")
 
-        return '\n'.join(descriptions) if descriptions else "暂无可用工具"
+        return "\n".join(descriptions) if descriptions else "暂无可用工具"
+
+    def execute_tool(self, name: str, tool_input: Any) -> str:
+        """按名称执行函数工具或对象工具。"""
+        if name in self._functions:
+            return str(self._functions[name]["func"](tool_input))
+
+        tool = self._tools.get(name)
+        if tool is None:
+            raise ValueError(f"工具 '{name}' 不存在")
+
+        parameters = tool_input if isinstance(tool_input, dict) else {"input": tool_input}
+        return str(tool.run(parameters))
+
+    def get_tool(self, name: str):
+        """获取已注册的对象工具。"""
+        return self._tools.get(name)
+
+    def list_tools(self) -> list[str]:
+        """列出函数工具和对象工具的名称。"""
+        return list(self._tools) + list(self._functions)
+
+    def unregister(self, name: str) -> bool:
+        """移除指定工具。"""
+        removed = self._tools.pop(name, None)
+        removed_function = self._functions.pop(name, None)
+        return removed is not None or removed_function is not None
 
     def to_openai_schema(self) -> Dict[str, Any]:
         """转换为 OpenAI function calling schema 格式

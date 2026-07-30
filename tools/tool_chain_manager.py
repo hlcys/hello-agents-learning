@@ -1,15 +1,18 @@
 # tool_chain_manager
 
-import re
-from typing import Optional, Dict, Any, List
-from hello_agents import ToolRegistry
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Dict, List
+
+if TYPE_CHECKING:
+    from hello_agents import ToolRegistry
 
 class ToolChain:
     """ 工具链: 支持多个工具顺序的执行 """
     def __init__(self, name: str, description: str):
         self.name = name
         self.description = description
-        self.steps = List[Dict[str, Any]]
+        self.steps: List[Dict[str, Any]] = []
 
 
     def add_step(self, tool_name: str, input_template: str, output_key: str = None):
@@ -30,7 +33,8 @@ class ToolChain:
 
     def execute(self, registry: ToolRegistry, initial_input: str, context: Dict[str, Any] = None) -> str:
         """执行工具"""
-        context = context or {}
+        if context is None:
+            context = {}
         context["input"] = initial_input
 
         print(f"🔗 开始执行工具链: {self.name}")
@@ -38,7 +42,7 @@ class ToolChain:
         for i, step in enumerate(self.steps, 1):
             tool_name = step["tool_name"]
             input_template = step["input_template"]
-            ouput_key = step["output_key"]
+            output_key = step["output_key"]
 
             # 替换模版中的变量
             try:
@@ -50,7 +54,7 @@ class ToolChain:
 
             # 执行工具
             result = registry.execute_tool(tool_name, tool_input)
-            context[ouput_key] = result
+            context[output_key] = result
 
             print(f"  ✅ 步骤 {i} 完成，结果长度: {len(result)} 字符")
 
@@ -59,11 +63,36 @@ class ToolChain:
         return final_result
 
 
+class ToolChainTool:
+    """将一条工具链适配为 SimpleAgent 可以调用的普通工具。"""
+
+    def __init__(self, manager: ToolChainManager, chain_name: str):
+        chain = manager.chains.get(chain_name)
+        if chain is None:
+            raise ValueError(f"工具链 '{chain_name}' 不存在")
+
+        self.manager = manager
+        self.name = chain.name
+        self.description = chain.description
+
+    def run(self, parameters: Dict[str, Any]) -> str:
+        if "input" not in parameters:
+            return "❌ 工具链调用失败: 缺少 input 参数"
+
+        initial_input = str(parameters["input"])
+        context = {
+            key: value
+            for key, value in parameters.items()
+            if key != "input"
+        }
+        return self.manager.execute_chain(self.name, initial_input, context)
+
+
 class ToolChainManager:
     """ 工具链管理器 """
 
-    def __init__(self):
-        self.registry = self.registry
+    def __init__(self, registry: ToolRegistry):
+        self.registry = registry
         self.chains: Dict[str, ToolChain] = {}
 
 
@@ -86,6 +115,16 @@ class ToolChainManager:
         """列出所有工具链"""
         return list(self.chains.keys())
 
+    def register_chain_as_tool(
+        self,
+        chain_name: str,
+        target_registry: ToolRegistry = None,
+    ):
+        """把工具链注册为 Agent 工具；默认注册到链的执行注册表。"""
+        tool = ToolChainTool(self, chain_name)
+        (target_registry or self.registry).register_tool(tool)
+        return tool
+
 # eg1: 搜索并计算
 def create_research_chain() -> ToolChain:
     chain = ToolChain(
@@ -102,7 +141,7 @@ def create_research_chain() -> ToolChain:
 
     chain.add_step(
         tool_name = "my_calculator",
-        input_template = "根据以下信息切换: {search_result}",
+        input_template = "{search_result} * {quantity}",
         output_key = "calculation_result"
     )
 
