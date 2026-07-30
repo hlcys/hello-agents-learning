@@ -1,4 +1,4 @@
-# test tool_chain for simple_agent
+# tests/test_tool_chain.py
 
 import re
 

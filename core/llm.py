@@ -55,7 +55,7 @@ class MyLLM(HelloAgentsLLM):
             )
         else:
             # 如果不是 modelscope, 则完全使用父类逻辑
-            super.__init__(
+            super().__init__(
                 model = model, 
                 api_key = api_key,
                 base_url = base_url,

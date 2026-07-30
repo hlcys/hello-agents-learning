@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, Any
 from .message import Message
 from .llm import HelloAgentsLLM
-from .config import Config
+from .config import Config, get_config
 
 
 class Agent(ABC):
@@ -20,7 +20,11 @@ class Agent(ABC):
         self.name = name
         self.llm  = llm
         self.system_prompt = system_prompt
-        self.config = config or Config()
+        self.config   = (
+            config
+            if config is not None
+            else get_config()
+        )
         self._history = list[Message] = []
 
     @abstractmethod
@@ -33,11 +37,14 @@ class Agent(ABC):
         """添加消息到历史记录"""
         self._history.append(message)
 
+
     def clear_history(self):
         self._history.clear()
 
+
     def get_history(self) -> list[Message]:
         return self._history
+
 
     def __str__(self):
         return f"Agent(name = {self.name}, provider = {self.llm.provider})"

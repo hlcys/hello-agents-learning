@@ -1,6 +1,6 @@
 # test_advanced_search.py
 from dotenv import load_dotenv
-from my_advanced_search import create_advanced_search_registry, MyAdvancedSearchTool
+from tools.my_advanced_search import create_advanced_search_registry, MyAdvancedSearchTool
 
 load_dotenv()
 

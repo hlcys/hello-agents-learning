@@ -1,7 +1,7 @@
 # test_my_calculator
 
 from dotenv import load_dotenv
-from my_calculator_tool import create_calculator_registry
+from tools.my_calculator_tool import create_calculator_registry
 
 load_dotenv()
 

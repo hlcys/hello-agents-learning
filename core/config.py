@@ -1,4 +1,5 @@
 """ 配置管理 """
+# - 单例模式: 让配置具备一致性, 避免差异化
 
 import os
 from typing import Optional, Dict, Any
@@ -6,6 +7,8 @@ from pydantic import BaseModel
 
 class Config(BaseModel):
     """Hello Agents 配置类"""
+
+    model_config = ConfigDict(frozen=True)
 
     # LLM 配置
     default_model: str = "gpt-3.5-turbo"
@@ -29,3 +32,10 @@ class Config(BaseModel):
             temperature = float(os.getenv("TEMPERATURE", "0.7")),
             max_tokens  = int(os.getenv("MAX_TOKENS")) if os.getenv("MAX_TOKENS") else None,
         )
+
+
+    @lru_cache(maxszie = 1)
+    def get_config() -> Config:
+        """ 获取当前进程唯一的全局配置实例。"""
+        return Config.from_env()
+    
