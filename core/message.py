@@ -17,6 +17,16 @@ class Message(BaseModel):
     datetime: datetime = None
     metadata: Optional[Dict[str, Any]] = None
 
+    """
+    - 多轮对话管理添加:
+    - conversation_id: str
+    - parent_id: str | None
+    - turn_id:   str | None
+    - metadata:  dict
+    - timestamp: datetime
+    - status: Literal["completed", "failed", "cancelled"] = "completed"
+    """
+
     def __init__(self, content: str, role: MessageRole, **kwargs):
         super().__init__(
             content = content,
