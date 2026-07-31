@@ -26,6 +26,6 @@ class Tool(ABC):
         pass
 
     @abstractmethod
-    def get_parameters(self) -> List[ToolParamter]:
+    def get_parameters(self) -> List[ToolParameter]:
         """获取工具参数"""
         pass
