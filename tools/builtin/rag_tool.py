@@ -1,0 +1,280 @@
+# RAG tool
+
+import time
+import random
+from base import Tool
+from dotenv import load_dotenv
+from typing import Any, Dict, List, Optional
+from hello_agents import HelloAgentLLM
+
+class RAGTool(Tool):
+    """ RAG 工具
+
+    提供完整的RAG能力
+    - 添加多格式文档
+    - 智能检索与召回
+    - LLM 增强回答
+    - 知识库管理
+    """
+    def __init__(
+        self,
+        knowledge_base_path: str = "./knowledge_base",
+        qdrant_url: str = None,
+        qdrant_api_key: str = None,
+        collection_name: str = "rag_knowledge_base",
+        rag_namespace: str = "default"
+    ):
+        # 初始化RAG管道
+        self._pipelines: Dict[str, Dict[str, Any]] = {}
+        self.llm = HelloAgentLLM()
+
+        # 创建默认管道
+        default_pipeline = create_rag_pipeline(
+            qdrant_url = self.qdrant_url,
+            qdrant_api_key  = self.qdrant_api_key,
+            collection_name = self.collection_name,
+            rag_namespace   = self.rag_namespace 
+        )
+        self._pipelines[rag_namespace] = default_pipeline
+        # 流程: 任意格式文档 -> MarkItdown -> 文本 -> 智能分块 -> 向量化 -> 存储检索
+
+    
+    def _convert_to_markdown(path: str) -> str:
+        """将任意格式文档转换为markdown文档"""
+        if not os.path.exists(path):
+            return ""
+
+        # 对于 pdf 文件: 
+        ext = (os.path.splitext(path)[1] or '').lower()
+        if ext == 'pdf':
+            return _enhanced_pdf_processing(path)
+
+        # 其他格式
+        md_instance = _get_markitdown_instance()
+        if md_instance is not None:
+            return _fallback_text_reader(path)
+
+        try:
+            result = md_instance.convert(path)
+            markdown_text = getattr(result, "text_content", None)
+            if isinstance(markdown_text, str) and markdown_text.strip():
+                print(f"[RAG] MarkItDown转换成功: {path} -> {len(markdown_text)} chars Markdown")
+                return markdown_text
+            return ""
+
+        except:
+            print(f"[WARNING] MarkItDown转换失败 {path}: {e}")
+            return _fallback_text_reader(path)  
+
+
+    def _split_paragraphs_with_headings(text: str) -> List[Dict]:
+        """根据标题层次分割段落"""
+        lines = text.splitlines()
+        heading_stack: List[str] = []
+        paragraphs: List[Dict] = []
+        buf: List[str] = []
+        char_pos = 0
+
+
+        def flush_buf(end_pos: int):
+            if not buf:
+                return 
+            content = "\n".join(buf).strip()
+            if not content:
+                return 
+            paragraphs.append({
+                "content": content,
+                "heading_path": " > ".join(heading_stack) if heading_stack else None,
+                "start": max(0, end_pos - len(content)),
+                "end": end_pos,
+            })
+
+        for ln in lines:
+            raw = ln
+            if raw.strip().startswith('#'):
+                flush_buf(char_pos)
+                level = len(raw) - len(raw.lstrip('#'))
+                title = raw.lstrip('#').strip()
+
+                if level <= 0: 
+                    level = 1
+                if level <= len(heading_stack):
+                    heading_stack = heading_stack[:level-1]
+                heading_stack.append(title)
+
+                char_pos += len(raw) + 1
+                continue
+
+            if raw.strip() == "":
+                flush_buf(char_pos)
+                buf = []
+            else:
+                buf.append(raw)
+            char_pos += len(raw) + 1
+
+        flush_buf(char_pos)
+
+        if not paragraphs:
+            paragraphs = [{
+                "content": text,
+                "heading_path": None,
+                "start": 0,
+                "end": len(text)
+            }]
+        return paragraphs
+
+
+    def _chunk_paragraphs(paragraphs: List[Dict], chunk_tokens: int, overlap_tokens: int) -> List[Dict]:
+        """基于token数量的智能分块"""
+        chunks: List[Dict] = []
+        cur: List[Dict] = []
+        cur_tokens = 0
+        i = 0
+
+        while i < len(paragraphs):
+            p = paragraphs[i]
+            p_tokens = _approx_token_len(p["content"]) or 1
+
+            if cur_tokens + p_tokens <= chunk_tokens or not cur:
+                cur.append(p)
+                cur_tokens += p_tokens
+                i += 1
+            else:
+                # 生成当前分块
+                content = "\n\n".join(x["content"] for x in cur)
+                start = cur[0]["start"]
+                end   = cur[-1]["end"]
+                heading_path = next((x["heading_path"] for x in reversed(cur) if x.get("heading_path")), None)
+
+                chunks.append({
+                    "content": content,
+                    "start": start,
+                    "end": end,
+                    "heading_path": heading_path,
+                })
+
+                if overlap_tokens > 0 and cur:
+                    kept: List[Dict] = []
+                    kept_tokens = 0
+                    for x in reversed(cur):
+                        t = _approx_token_len(x["content"]) or 1
+                        if kept_tokens + t > overlap_tokens:
+                            break
+                        kept.append(x)
+                        kept_tokens += t
+                    cur = list(reversed(kept))
+                    cur_tokens = kept_tokens
+                else:
+                    cur = []
+                    cur_tokens = 0
+
+        if cur:
+            content = "\n\n".join(x["content"] for x in cur)
+            start = cur[0]["start"]
+            end   = cur[-1]["end"]
+            heading_path = next((x["heading_path"] for x in reversed(cur) if x.get("heading_path")), None)
+
+            chunks.append({
+                "content": content,
+                "start": start,
+                "end": end,
+                "heading_path": heading_path,
+            })
+
+        return chunks
+
+
+    def _approx_token_len(text: str) -> int:
+        """近似估计Token长度, 支持中英文混合"""
+        cjk = sum(1 for ch in text if _is_cjk(ch))
+        non_cjk_tokens = len([t for t in text.split() if t])
+        return cjk + non_cjk_tokens
+
+
+    def _is_cjk(ch: str) -> bool:
+        """判断是否为CJK字符"""
+        code = ord(ch)
+        return (
+            0x4E00 <= code <= 0x9FFF or  # CJK统一汉字
+            0x3400 <= code <= 0x4DBF or  # CJK扩展A
+            0x20000 <= code <= 0x2A6DF or # CJK扩展B
+            0x2A700 <= code <= 0x2B73F or # CJK扩展C
+            0x2B740 <= code <= 0x2B81F or # CJK扩展D
+            0x2B820 <= code <= 0x2CEAF or # CJK扩展E
+            0xF900 <= code <= 0xFAFF      # CJK兼容汉字
+        )
+
+
+    def index_chunks(
+        store = None,
+        chunks: List[Dict] = None,
+        cache_db: Optional[str] = None,
+        batch_size: int = 64,
+        rag_namespace: str = "default"
+    ):
+        """嵌入功能
+        嵌入模块 是 RAG 系统的核心, 将文本转换为高维向量。
+        RAG 系统检索能力 ---> 嵌入模型的质量 + 向量存储的效率
+
+        using 百炼 api with fallback to sentence-transformers 
+        """
+        if not chunks:
+            print("[RAG] No chunks to index")
+            return
+
+        # 嵌入模型
+        embedder  = get_text_embedder()
+        dimension = get_dimension(384)
+
+        # 创建默认Qdrant存储
+        if store is None:
+            store = _create_default_vector_store(dimension)
+            print(f"[RAG] Created default Qdrant store with dimension {dimension}")
+
+        # 预处理 markdown 文本
+        processed_texts = []
+        for chunk in chunks:
+            raw_content = chunk["content"]
+            processed_content = _preprocess_markdown_for_embedding(raw_content)
+            processed_texts.append(processed_content)
+
+        print(f"[RAG] Embedding start: total_texts={len(processed_texts)} batch_size={batch_size}")
+
+        # 批量编码
+        vecs: List[List[float]] = []
+
+        for i in range(0, len(processed_texts), batch_size):
+            part = processed_texts[i: i + batch_size]
+            try:
+                part_vecs = embedder.concoder(part)
+
+                if not isinstance(part_vecs, list):
+                    if hasattr(part_vecs, "tolist"):
+                        part_vecs = [part_vecs.tolist()]
+                part_vecs = [list(part_vecs)]
+
+                for v in part_vecs:
+                    try:
+                        if hasattr(v, "tolist"):
+                            v = v.tolist()
+                        v_norm = [float(x) for x in v]
+
+                        if len(v_norm) != dimension:
+                            print(f"[WARNING] 向量维度异常: 期望{dimension}, 实际{len(v_norm)}")
+                            if len(v_norm) < dimension:
+                                v_norm.extend([0.0] * (dimension - len(v_norm)))
+                            else:
+                                v_norm = v_norm[:dimension]
+
+                        vecs.append(v_norm)
+                    except Exception as e:
+                        print(f"[WARNING] 向量转换失败: {e}, 使用零向量")
+                        vecs.append([0.0] * dimension)
+                
+            except Exception as e:
+                print(f"[WARNING] Batch {i} encoding failed: {e}")
+                # 实现重试机制
+                # ... 
+                
+
+            print(f"[RAG] Embedding progress: {min(i+batch_size, len(processed_texts))}/{len(processed_texts)}")

@@ -4,7 +4,7 @@
 # - MemoryTool: 专注于用户的接口和参数处理
 # - MemoryManager: 负责核心的记忆管理
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 from tools.base import Tool
 import datetime
 
@@ -32,8 +32,11 @@ def execute(self, action: str, **kwargs) -> str:
         return self._get_summary(**kwargs)
     elif action == "stats":
         return self._get_stats(**kwargs)
-    # ..... 
-
+    elif action == "forget":
+        return self._forget_memory(**kwargs)
+    elif action == "consolidate":
+        return self._consolidate_memory(**kwargs)
+    # ..
 
 # op1: add_memory
 # 1. 会话 id管理, 每个记忆都会会话归属
@@ -543,8 +546,6 @@ class PerceptualMemory(BaseMemory):
             recency_score = math.exp(-decay_factor * age_hours / 24) 
 
             return max(0.1, recency_score)
+        
         except Exception as e:
             return 0.5 # 默认分数
-
-
-    
