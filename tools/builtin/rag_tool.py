@@ -2,6 +2,7 @@
 
 import time
 import random
+import re
 from base import Tool
 from dotenv import load_dotenv
 from typing import Any, Dict, List, Optional
@@ -68,58 +69,268 @@ class RAGTool(Tool):
 
 
     def _split_paragraphs_with_headings(text: str) -> List[Dict]:
-        """根据标题层次分割段落"""
-        lines = text.splitlines()
-        heading_stack: List[str] = []
+        """将文本切分为带结构路径的语义段落。
+
+        优先使用 Markdown 标题；
+        当文档没有明确标题时，继续识别章节、法律条文、列表、缩进和自然句末。
+        特别长的自然段会在句子边界处再切分，降低超长单段对下游 token 分块的影响。
+        """
+        if not text or not text.strip():
+            return []
+
+        # 这是段落级保护上限，最终 chunk 大小仍由 _chunk_paragraphs 控制。
+        max_paragraph_chars = 1200
+        lines = text.splitlines(keepends=True)
+        heading_stack: List[tuple] = []
         paragraphs: List[Dict] = []
-        buf: List[str] = []
+        buf_start: Optional[int] = None
+        buf_end: Optional[int] = None
+        buf_heading_path: Optional[str] = None
+        current_article: Optional[str] = None
         char_pos = 0
 
+        markdown_heading_pattern = re.compile(
+            r"^\s{0,3}(#{1,6})(?!#)[ \t]*(\S.*?)[ \t]*#*[ \t]*$"
+        )
+        legal_article_pattern = re.compile(
+            r"^(第[零〇一二三四五六七八九十百千万两\d]+条"
+            r"(?:之[零〇一二三四五六七八九十百千万两\d]+)?)"
+        )
+        legal_document = any(
+            legal_article_pattern.match(line.strip()) for line in lines
+        )
+        has_markdown_headings = any(
+            markdown_heading_pattern.match(line.rstrip("\r\n")) for line in lines
+        )
 
-        def flush_buf(end_pos: int):
-            if not buf:
-                return 
-            content = "\n".join(buf).strip()
-            if not content:
-                return 
-            paragraphs.append({
-                "content": content,
-                "heading_path": " > ".join(heading_stack) if heading_stack else None,
-                "start": max(0, end_pos - len(content)),
-                "end": end_pos,
-            })
+        def heading_path(extra: Optional[str] = None) -> Optional[str]:
+            parts = [title for _, title in heading_stack]
+            if current_article:
+                parts.append(current_article)
+            if extra:
+                parts.append(extra)
+            return " > ".join(parts) if parts else None
 
-        for ln in lines:
-            raw = ln
-            if raw.strip().startswith('#'):
-                flush_buf(char_pos)
-                level = len(raw) - len(raw.lstrip('#'))
-                title = raw.lstrip('#').strip()
+        def update_heading(level: int, title: str):
+            """按层级更新标题栈，兼容 # 后直接出现 ### 的情况。"""
+            nonlocal current_article
+            while heading_stack and heading_stack[-1][0] >= level:
+                heading_stack.pop()
+            heading_stack.append((level, title))
+            current_article = None
 
-                if level <= 0: 
-                    level = 1
-                if level <= len(heading_stack):
-                    heading_stack = heading_stack[:level-1]
-                heading_stack.append(title)
+        def detect_plain_heading(line: str):
+            """识别小说章节、法律编章节和常见的编号式小标题。"""
+            if not line or len(line) > 80:
+                return None
 
-                char_pos += len(raw) + 1
+            match = re.match(
+                r"^(第[零〇一二三四五六七八九十百千万两\d]+"
+                r"([编部卷章回节])(?:\s*[^。！？；;]{0,50})?)$",
+                line,
+            )
+            if match:
+                level = {
+                    "编": 1,
+                    "部": 1,
+                    "卷": 1,
+                    "章": 2,
+                    "回": 2,
+                    "节": 3,
+                }[match.group(2)]
+                return level, match.group(1).strip()
+
+            match = re.match(
+                r"^(Part|Chapter|Section)\s+[\w.-]+(?:\s+.{0,50})?$",
+                line,
+                re.IGNORECASE,
+            )
+            if match:
+                level = {"part": 1, "chapter": 2, "section": 3}[
+                    match.group(1).lower()
+                ]
+                return level, line
+
+            if re.match(r"^(序章|序言|前言|引言|楔子|后记|尾声|附录)\b", line):
+                return 1, line
+
+            # 法律文档中的“一、”“（一）”通常是条款而非标题。
+            if not legal_document:
+                match = re.match(r"^(\d+(?:\.\d+){0,3})[.)、]?\s+(.+)$", line)
+                if match and not re.search(r"[。！？；;]$", line):
+                    return match.group(1).count(".") + 1, line
+
+                if re.match(
+                    r"^[一二三四五六七八九十百]+、\s*[^。！？；;]{1,40}$",
+                    line,
+                ):
+                    return 1, line
+
+            return None
+
+        def append_piece(content: str, absolute_start: int, path: Optional[str]):
+            """追加段落并修正去除首尾空白后的字符偏移。"""
+            if not content or not content.strip():
+                return
+
+            leading = len(content) - len(content.lstrip())
+            trailing = len(content) - len(content.rstrip())
+            cleaned = content.strip()
+            start = absolute_start + leading
+            end = absolute_start + len(content) - trailing
+            paragraphs.append(
+                {
+                    "content": cleaned,
+                    "heading_path": path,
+                    "start": start,
+                    "end": end,
+                }
+            )
+
+        def append_with_sentence_fallback(
+            content: str, absolute_start: int, path: Optional[str]
+        ):
+            """优先在句末切分超长段落，没有句末时才按长度硬切。"""
+            if len(content) <= max_paragraph_chars:
+                append_piece(content, absolute_start, path)
+                return
+
+            boundary_chars = set("。！？!?；;\n")
+            closing_chars = set("\"'”’」』】）》）]")
+            piece_start = 0
+            last_boundary: Optional[int] = None
+            index = 0
+
+            while index < len(content):
+                if content[index] in boundary_chars:
+                    boundary = index + 1
+                    while boundary < len(content) and content[boundary] in closing_chars:
+                        boundary += 1
+                    last_boundary = boundary
+
+                if index - piece_start + 1 >= max_paragraph_chars:
+                    # 避免采用离当前位置太远的句末，产生极小段落。
+                    if (
+                        last_boundary is not None
+                        and last_boundary - piece_start >= max_paragraph_chars // 2
+                    ):
+                        cut = last_boundary
+                    else:
+                        cut = index + 1
+
+                    append_piece(
+                        content[piece_start:cut],
+                        absolute_start + piece_start,
+                        path,
+                    )
+                    piece_start = cut
+                    last_boundary = None
+                    index = cut
+                    continue
+
+                index += 1
+
+            append_piece(
+                content[piece_start:], absolute_start + piece_start, path
+            )
+
+        def flush_buf():
+            nonlocal buf_start, buf_end, buf_heading_path
+            if buf_start is None or buf_end is None:
+                return
+
+            append_with_sentence_fallback(
+                text[buf_start:buf_end], buf_start, buf_heading_path
+            )
+            buf_start = None
+            buf_end = None
+            buf_heading_path = None
+
+        def append_line(line_start: int, line_end: int):
+            nonlocal buf_start, buf_end, buf_heading_path
+            if buf_start is None:
+                buf_start = line_start
+                buf_heading_path = heading_path()
+            buf_end = line_end
+
+        previous_nonempty_line = ""
+
+        for line in lines:
+            raw = line.rstrip("\r\n")
+            stripped = raw.strip()
+            line_start = char_pos
+            line_end = line_start + len(raw)
+            char_pos += len(line)
+
+            markdown_heading = markdown_heading_pattern.match(raw)
+            if markdown_heading:
+                flush_buf()
+                update_heading(
+                    len(markdown_heading.group(1)),
+                    markdown_heading.group(2).strip(),
+                )
+                previous_nonempty_line = ""
                 continue
 
-            if raw.strip() == "":
-                flush_buf(char_pos)
-                buf = []
-            else:
-                buf.append(raw)
-            char_pos += len(raw) + 1
+            plain_heading = detect_plain_heading(stripped)
+            if plain_heading:
+                flush_buf()
+                update_heading(*plain_heading)
+                previous_nonempty_line = ""
+                continue
 
-        flush_buf(char_pos)
+            if not stripped:
+                flush_buf()
+                previous_nonempty_line = ""
+                continue
+
+            article_match = legal_article_pattern.match(stripped)
+            if article_match:
+                flush_buf()
+                current_article = article_match.group(1)
+                append_line(line_start, line_end)
+                previous_nonempty_line = stripped
+                continue
+
+            legal_clause_start = legal_document and bool(
+                re.match(
+                    r"^(?:[（(][一二三四五六七八九十百千万两\d]+[）)]"
+                    r"|[一二三四五六七八九十百千万两]+、|\d+[.、])",
+                    stripped,
+                )
+            )
+            list_item_start = bool(re.match(r"^(?:[-*+]\s+|\d+[.)]\s+)", stripped))
+            indented_paragraph = raw.startswith("\u3000\u3000") or bool(
+                re.match(r"^[ \t]{2,}\S", raw)
+            )
+            previous_sentence_ended = bool(
+                re.search(r"[。！？!?；;…][\"'”’」』）】]*$", previous_nonempty_line)
+            )
+
+            # 无 Markdown 结构时，用自然段特征合并 PDF 的软换行，同时
+            # 在明确的句末、缩进或列表项处建立新的语义段落。
+            should_start_new_paragraph = buf_start is not None and (
+                legal_clause_start
+                or list_item_start
+                or (
+                    not has_markdown_headings
+                    and (indented_paragraph or previous_sentence_ended)
+                )
+            )
+            if should_start_new_paragraph:
+                flush_buf()
+
+            append_line(line_start, line_end)
+            previous_nonempty_line = stripped
+
+        flush_buf()
 
         if not paragraphs:
             paragraphs = [{
-                "content": text,
+                "content": text.strip(),
                 "heading_path": None,
-                "start": 0,
-                "end": len(text)
+                "start": len(text) - len(text.lstrip()),
+                "end": len(text.rstrip())
             }]
         return paragraphs
 
@@ -383,4 +594,3 @@ class RAGTool(Tool):
         merged = list(agg.values())
         merged.sort(key = lambda x : float(x.get("score", 0.0)), reverse = True)
         return merged[:top_k]
-    
