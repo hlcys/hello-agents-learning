@@ -1,10 +1,10 @@
 """天气查询 MCP 服务器"""
 
 import json
-import requests
-import os
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any
+
+import requests
 from hello_agents.protocols import MCPServer
 
 weather_server = MCPServer(
@@ -19,8 +19,9 @@ CITY_MAP = {
     "南京": "Nanjing", "天津": "Tianjin", "苏州": "Suzhou"
 }
 
-def get_weather_data(city: str) -> Dict[str, Any]:
+def get_weather_data(city: str) -> dict[str, Any]:
     """从 wttr.in 中获取天气"""
+    # wttr.in 对英文城市名的识别更稳定，因此优先转换已知中文城市名。
     city_en = CITY_MAP.get(city, city)
     url = f"https://wttr.in/{city_en}?format=j1"
     response = requests.get(url, timeout=10)
@@ -36,15 +37,18 @@ def get_weather_data(city: str) -> Dict[str, Any]:
         "condition": current["weatherDesc"][0]["value"],
         "wind_speed": round(float(current["windspeedKmph"]) / 3.6, 1),
         "visibility": float(current["visibility"]),
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # 记录本机时区偏移，避免时间戳含义不明确。
+        "timestamp": datetime.now().astimezone().isoformat(timespec="seconds")
     }
 
 # 定义工具函数
 def get_weather(city: str) -> str:
+    """查询指定城市的实时天气，并返回 JSON 字符串。"""
     try:
         weather_data = get_weather_data(city)
         return json.dumps(weather_data, ensure_ascii = False, indent = 2)
-    except Exception as e:
+    except (requests.RequestException, KeyError, IndexError, TypeError, ValueError) as e:
+        # MCP 工具统一返回结构化错误，避免外部接口异常中断服务器。
         return json.dumps({
             "error": str(e),
             "city":  city

@@ -1,0 +1,111 @@
+{
+  "smoke_test": true,
+  "config": {
+    "model": {
+      "base_model": "Qwen/Qwen3-0.6B"
+    },
+    "data": {
+      "max_samples": 8
+    },
+    "sft": {
+      "output_dir": "/home/kinuru/AI_Infra/Hello-Agent/hello-agents/Agentic-RL/models/smoke_sft",
+      "num_epochs": 3,
+      "batch_size": 1,
+      "gradient_accumulation_steps": 2,
+      "max_length": 512,
+      "learning_rate": 5e-05,
+      "max_steps": 2
+    },
+    "grpo": {
+      "output_dir": "/home/kinuru/AI_Infra/Hello-Agent/hello-agents/Agentic-RL/models/smoke_grpo",
+      "num_epochs": 3,
+      "batch_size": 1,
+      "gradient_accumulation_steps": 2,
+      "num_generations": 2,
+      "generation_batch_size": 2,
+      "max_prompt_length": 384,
+      "max_completion_length": 128,
+      "learning_rate": 5e-06,
+      "max_steps": 2
+    },
+    "eval": {
+      "max_samples": 2,
+      "max_prompt_length": 384,
+      "max_new_tokens": 128,
+      "sft_accuracy_threshold": 0.4
+    },
+    "monitoring": {
+      "use_wandb": false,
+      "use_tensorboard": true,
+      "wandb_project": "agentic-rl-pipeline"
+    },
+    "results_path": "training_results.smoke.json"
+  },
+  "runtime": {
+    "gpu_name": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "free_memory_gib": 4.998,
+    "total_memory_gib": 6.0,
+    "precision": "bf16"
+  },
+  "data": {
+    "status": "success",
+    "format": "sft",
+    "split": "train",
+    "dataset_size": 8,
+    "sample_keys": [
+      "prompt",
+      "completion",
+      "text"
+    ]
+  },
+  "sft_training": {
+    "status": "success",
+    "algorithm": "SFT",
+    "model": "Qwen/Qwen3-0.6B",
+    "output_dir": "/home/kinuru/AI_Infra/Hello-Agent/hello-agents/Agentic-RL/models/smoke_sft",
+    "dataset_size": 8,
+    "global_step": 2,
+    "metrics": {
+      "train_runtime": 2.2026,
+      "train_samples_per_second": 1.816,
+      "train_steps_per_second": 0.908,
+      "total_flos": 1830374866944.0,
+      "train_loss": 0.9501659274101257,
+      "epoch": 0.5
+    },
+    "peak_gpu_memory_gib": 2.115
+  },
+  "sft_evaluation": {
+    "status": "success",
+    "model_path": "/home/kinuru/AI_Infra/Hello-Agent/hello-agents/Agentic-RL/models/smoke_sft",
+    "num_samples": 2,
+    "accuracy": "50.00%",
+    "average_reward": "0.5000",
+    "device": "cuda:0"
+  },
+  "grpo_training": {
+    "status": "success",
+    "algorithm": "GRPO",
+    "model": "/home/kinuru/AI_Infra/Hello-Agent/hello-agents/Agentic-RL/models/smoke_sft",
+    "output_dir": "/home/kinuru/AI_Infra/Hello-Agent/hello-agents/Agentic-RL/models/smoke_grpo",
+    "dataset_size": 8,
+    "global_step": 2,
+    "metrics": {
+      "train_runtime": 14.7192,
+      "train_samples_per_second": 0.272,
+      "train_steps_per_second": 0.136,
+      "total_flos": 0.0,
+      "train_loss": 0.0,
+      "epoch": 0.25
+    },
+    "peak_gpu_memory_gib": 1.462
+  },
+  "grpo_evaluation": {
+    "status": "success",
+    "model_path": "/home/kinuru/AI_Infra/Hello-Agent/hello-agents/Agentic-RL/models/smoke_grpo",
+    "num_samples": 2,
+    "accuracy": "50.00%",
+    "average_reward": "0.5000",
+    "device": "cuda:0"
+  }
+}

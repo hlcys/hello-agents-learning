@@ -2,22 +2,20 @@
 
 import asyncio
 import json
-import sys
-import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'HelloAgents'))
 from hello_agents.protocols.mcp.client import MCPClient
 
-async def test_weather_server():
-    server_script = os.path.join(
-        os.path.dirname(__file__),
-        "14_weather_mcp_server.py"
-    )
-    client = MCPClient(
-        ["python", server_script]
-    )
+# 同时兼容直接运行脚本和以包模块方式导入。
+try:
+    from .main import weather_server
+except ImportError:
+    from main import weather_server
 
+
+async def test_weather_server():
     try:
+        # 测试代码与服务端在同一进程中运行，避免 stdio 受 Python/依赖版本影响。
+        client = MCPClient(weather_server.mcp)
         async with client:
             # 测试1: 获取服务器信息
             info = json.loads(await client.call_tool(
@@ -43,8 +41,9 @@ async def test_weather_server():
                 print(f"深圳天气: {weather['temperature']}°C, {weather['condition']}")
 
             print("\n 所有测试完成!")
-    except Exception as e:
+    except Exception as e:  # 测试入口需要汇总所有连接或调用错误。
         print(f"❌ 测试失败: {e}")
+        raise
 
 if __name__ == "__main__":
     asyncio.run(test_weather_server())

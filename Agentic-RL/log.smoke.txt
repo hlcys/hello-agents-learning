@@ -1,0 +1,136 @@
+[2026-09-07 15:35:34] GPU: NVIDIA GeForce RTX 3060 Laptop GPU，可用显存 5.00/6.00 GiB，训练精度: bf16，使用 LoRA + 梯度检查点
+[2026-09-07 15:35:34] ==================================================
+[2026-09-07 15:35:34] 阶段一: 数据准备
+[2026-09-07 15:35:34] ==================================================
+📥 加载 GSM8K 数据集 (split=train)...
+Using the latest cached version of the dataset since openai/gsm8k couldn't be found on the Hugging Face Hub (offline mode is enabled).
+WARNING:datasets.load:Using the latest cached version of the dataset since openai/gsm8k couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'main' at /home/kinuru/.cache/huggingface/datasets/openai___gsm8k/main/0.0.0/740312add88f781978c0658806c59bc2815b9866 (last modified on Mon Sep  7 15:33:48 2026).
+WARNING:datasets.packaged_modules.cache.cache:Found the latest cached dataset configuration 'main' at /home/kinuru/.cache/huggingface/datasets/openai___gsm8k/main/0.0.0/740312add88f781978c0658806c59bc2815b9866 (last modified on Mon Sep  7 15:33:48 2026).
+   使用 8 个样本（限制：8）
+[2026-09-07 15:35:34] ✓ 数据集加载完成
+[2026-09-07 15:35:34]   - 样本数: 8
+[2026-09-07 15:35:34]   - 格式: sft
+[2026-09-07 15:35:34]   - 数据列: prompt, completion, text
+[2026-09-07 15:35:34] 
+==================================================
+[2026-09-07 15:35:34] 阶段二: SFT训练
+[2026-09-07 15:35:34] ==================================================
+trainable params: 2,293,760 || all params: 598,343,680 || trainable%: 0.3834
+📥 加载 GSM8K 数据集 (split=train)...
+Using the latest cached version of the dataset since openai/gsm8k couldn't be found on the Hugging Face Hub (offline mode is enabled).
+WARNING:datasets.load:Using the latest cached version of the dataset since openai/gsm8k couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'main' at /home/kinuru/.cache/huggingface/datasets/openai___gsm8k/main/0.0.0/740312add88f781978c0658806c59bc2815b9866 (last modified on Mon Sep  7 15:33:48 2026).
+WARNING:datasets.packaged_modules.cache.cache:Found the latest cached dataset configuration 'main' at /home/kinuru/.cache/huggingface/datasets/openai___gsm8k/main/0.0.0/740312add88f781978c0658806c59bc2815b9866 (last modified on Mon Sep  7 15:33:48 2026).
+   使用 8 个样本（限制：8）
+SFT: batch=1, gradient_accumulation=2, dtype=bf16
+The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'bos_token_id': None}.
+
+  0%|          | 0/2 [00:00<?, ?it/s]
+ 50%|█████     | 1/2 [00:01<00:01,  1.63s/it]
+                                             
+{'loss': 1.045, 'grad_norm': 1.8380259275436401, 'learning_rate': 5e-05, 'entropy': 0.5851418972015381, 'num_tokens': 348.0, 'mean_token_accuracy': 0.7801215350627899, 'epoch': 0.25}
+
+ 50%|█████     | 1/2 [00:01<00:01,  1.63s/it]
+100%|██████████| 2/2 [00:02<00:00,  1.00s/it]
+                                             
+{'loss': 0.8554, 'grad_norm': 2.1525416374206543, 'learning_rate': 2.5e-05, 'entropy': 0.5571418106555939, 'num_tokens': 689.0, 'mean_token_accuracy': 0.802077442407608, 'epoch': 0.5}
+
+100%|██████████| 2/2 [00:02<00:00,  1.00s/it]
+                                             
+
+100%|██████████| 2/2 [00:02<00:00,  1.00s/it]{'train_runtime': 2.2026, 'train_samples_per_second': 1.816, 'train_steps_per_second': 0.908, 'train_loss': 0.9501659274101257, 'epoch': 0.5}
+
+100%|██████████| 2/2 [00:02<00:00,  1.10s/it]
+/home/kinuru/AI_Infra/.venv/lib/python3.14/site-packages/peft/utils/save_and_load.py:438: UserWarning: Could not find a config file in Qwen/Qwen3-0.6B - will assume that the vocabulary was not modified.
+  warnings.warn(
+峰值 GPU 张量显存: 2.115 GiB
+[2026-09-07 15:35:42] ✓ SFT训练完成
+[2026-09-07 15:35:42]   - 模型路径: /home/kinuru/AI_Infra/Hello-Agent/hello-agents/Agentic-RL/models/smoke_sft
+[2026-09-07 15:35:42]   - 状态: success
+[2026-09-07 15:35:42] 
+==================================================
+[2026-09-07 15:35:42] 阶段三: SFT评估
+[2026-09-07 15:35:42] ==================================================
+已加载 LoRA 权重: /home/kinuru/AI_Infra/Hello-Agent/hello-agents/Agentic-RL/models/smoke_sft
+📥 加载 GSM8K 数据集 (split=test)...
+Using the latest cached version of the dataset since openai/gsm8k couldn't be found on the Hugging Face Hub (offline mode is enabled).
+WARNING:datasets.load:Using the latest cached version of the dataset since openai/gsm8k couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'main' at /home/kinuru/.cache/huggingface/datasets/openai___gsm8k/main/0.0.0/740312add88f781978c0658806c59bc2815b9866 (last modified on Mon Sep  7 15:33:48 2026).
+WARNING:datasets.packaged_modules.cache.cache:Found the latest cached dataset configuration 'main' at /home/kinuru/.cache/huggingface/datasets/openai___gsm8k/main/0.0.0/740312add88f781978c0658806c59bc2815b9866 (last modified on Mon Sep  7 15:33:48 2026).
+   使用 2 个样本（限制：2）
+
+评估:   0%|          | 0/2 [00:00<?, ?题/s]The following generation flags are not valid and may be ignored: ['temperature', 'top_p', 'top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+评估:  50%|█████     | 1/2 [00:05<00:05,  5.73s/题]
+评估: 100%|██████████| 2/2 [00:12<00:00,  6.29s/题]
+评估: 100%|██████████| 2/2 [00:12<00:00,  6.20s/题]
+[2026-09-07 15:35:57] ✓ SFT评估完成
+[2026-09-07 15:35:57]   - 准确率: 50.00%
+[2026-09-07 15:35:57]   - 平均奖励: 0.5000
+[2026-09-07 15:35:57] 
+==================================================
+[2026-09-07 15:35:57] 阶段四: GRPO 训练
+[2026-09-07 15:35:57] ==================================================
+已加载 LoRA 权重: /home/kinuru/AI_Infra/Hello-Agent/hello-agents/Agentic-RL/models/smoke_sft
+trainable params: 2,293,760 || all params: 598,343,680 || trainable%: 0.3834
+📥 加载 GSM8K 数据集 (split=train)...
+Using the latest cached version of the dataset since openai/gsm8k couldn't be found on the Hugging Face Hub (offline mode is enabled).
+WARNING:datasets.load:Using the latest cached version of the dataset since openai/gsm8k couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'main' at /home/kinuru/.cache/huggingface/datasets/openai___gsm8k/main/0.0.0/740312add88f781978c0658806c59bc2815b9866 (last modified on Mon Sep  7 15:33:48 2026).
+WARNING:datasets.packaged_modules.cache.cache:Found the latest cached dataset configuration 'main' at /home/kinuru/.cache/huggingface/datasets/openai___gsm8k/main/0.0.0/740312add88f781978c0658806c59bc2815b9866 (last modified on Mon Sep  7 15:33:48 2026).
+   使用 8 个样本（限制：8）
+GRPO: batch=1, gradient_accumulation=2, dtype=bf16
+The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'bos_token_id': None}.
+
+  0%|          | 0/2 [00:00<?, ?it/s]Could not estimate the number of tokens of the input, floating-point operations will not be computed
+
+ 50%|█████     | 1/2 [00:07<00:07,  7.55s/it]
+                                             
+{'loss': 0.0, 'grad_norm': 0.0, 'learning_rate': 5e-06, 'num_tokens': 390.0, 'completions/mean_length': 128.0, 'completions/min_length': 128.0, 'completions/max_length': 128.0, 'completions/clipped_ratio': 1.0, 'completions/mean_terminated_length': 0.0, 'completions/min_terminated_length': 0.0, 'completions/max_terminated_length': 0.0, 'rewards/MathRewardFunction/mean': 1.0, 'rewards/MathRewardFunction/std': 0.0, 'reward': 1.0, 'reward_std': 0.0, 'frac_reward_zero_std': 1.0, 'entropy': 0.4654977023601532, 'clip_ratio/low_mean': 0.0, 'clip_ratio/high_mean': 0.0, 'clip_ratio/region_mean': 0.0, 'clip_ratio/low_min': 0.0, 'clip_ratio/high_max': 0.0, 'step_time': 7.533841855999981, 'epoch': 0.12}
+
+ 50%|█████     | 1/2 [00:07<00:07,  7.55s/it]
+100%|██████████| 2/2 [00:14<00:00,  7.32s/it]
+                                             
+{'loss': 0.0, 'grad_norm': 0.0, 'learning_rate': 2.5e-06, 'num_tokens': 772.0, 'completions/mean_length': 128.0, 'completions/min_length': 128.0, 'completions/max_length': 128.0, 'completions/clipped_ratio': 1.0, 'completions/mean_terminated_length': 0.0, 'completions/min_terminated_length': 0.0, 'completions/max_terminated_length': 0.0, 'rewards/MathRewardFunction/mean': 0.0, 'rewards/MathRewardFunction/std': 0.0, 'reward': 0.0, 'reward_std': 0.0, 'frac_reward_zero_std': 1.0, 'entropy': 0.33589835464954376, 'clip_ratio/low_mean': 0.0, 'clip_ratio/high_mean': 0.0, 'clip_ratio/region_mean': 0.0, 'clip_ratio/low_min': 0.0, 'clip_ratio/high_max': 0.0, 'step_time': 7.13759878999997, 'epoch': 0.25}
+
+100%|██████████| 2/2 [00:14<00:00,  7.32s/it]
+                                             
+{'train_runtime': 14.7192, 'train_samples_per_second': 0.272, 'train_steps_per_second': 0.136, 'train_loss': 0.0, 'epoch': 0.25}
+
+100%|██████████| 2/2 [00:14<00:00,  7.32s/it]
+100%|██████████| 2/2 [00:14<00:00,  7.36s/it]
+/home/kinuru/AI_Infra/.venv/lib/python3.14/site-packages/peft/utils/save_and_load.py:438: UserWarning: Could not find a config file in Qwen/Qwen3-0.6B - will assume that the vocabulary was not modified.
+  warnings.warn(
+峰值 GPU 张量显存: 1.462 GiB
+[2026-09-07 15:36:15] ✓ GRPO训练完成
+[2026-09-07 15:36:15]   - 模型路径: /home/kinuru/AI_Infra/Hello-Agent/hello-agents/Agentic-RL/models/smoke_grpo
+[2026-09-07 15:36:15]   - 状态: success
+[2026-09-07 15:36:15] 
+==================================================
+[2026-09-07 15:36:15] 阶段五: GRPO评估
+[2026-09-07 15:36:15] ==================================================
+已加载 LoRA 权重: /home/kinuru/AI_Infra/Hello-Agent/hello-agents/Agentic-RL/models/smoke_grpo
+📥 加载 GSM8K 数据集 (split=test)...
+Using the latest cached version of the dataset since openai/gsm8k couldn't be found on the Hugging Face Hub (offline mode is enabled).
+WARNING:datasets.load:Using the latest cached version of the dataset since openai/gsm8k couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'main' at /home/kinuru/.cache/huggingface/datasets/openai___gsm8k/main/0.0.0/740312add88f781978c0658806c59bc2815b9866 (last modified on Mon Sep  7 15:33:48 2026).
+WARNING:datasets.packaged_modules.cache.cache:Found the latest cached dataset configuration 'main' at /home/kinuru/.cache/huggingface/datasets/openai___gsm8k/main/0.0.0/740312add88f781978c0658806c59bc2815b9866 (last modified on Mon Sep  7 15:33:48 2026).
+   使用 2 个样本（限制：2）
+
+评估:   0%|          | 0/2 [00:00<?, ?题/s]
+评估:  50%|█████     | 1/2 [00:06<00:06,  6.00s/题]
+评估: 100%|██████████| 2/2 [00:12<00:00,  6.18s/题]
+评估: 100%|██████████| 2/2 [00:12<00:00,  6.16s/题]
+[2026-09-07 15:36:29] ✓ GRPO评估完成
+[2026-09-07 15:36:29]   - 准确率: 50.00%
+[2026-09-07 15:36:29]   - 平均奖励: 0.5000
+[2026-09-07 15:36:29] 
+==================================================
+[2026-09-07 15:36:29] 阶段6: 保存结果
+[2026-09-07 15:36:29] ==================================================
+[2026-09-07 15:36:29] ✓ 结果已保存到: /home/kinuru/AI_Infra/Hello-Agent/hello-agents/Agentic-RL/training_results.smoke.json
+[2026-09-07 15:36:29] 
+==================================================
+[2026-09-07 15:36:29] ✓ 训练流程完成!
+[2026-09-07 15:36:29] ==================================================
