@@ -5,7 +5,7 @@ RAG: 检索-增强-生成
 **增强**：将检索结果融入提示词，辅助模型生成
 **生成**：生成具有准确性和透明度的答案
 下面是 RAG 系统的完整工作流程:
-![alt text](image-3.png)
+![alt text](assets/image-3.png)
 
 将文档转换为markdown格式后:
 标准Markdown文本 → 标题层次解析 → 段落语义分割 → Token计算分块 → 重叠策略优化 → 向量化准备
@@ -32,10 +32,10 @@ HelloAgents 将 MQE 和 HyDE 整合到统一的扩展检索框架中。
 
 
 #### 实例1： 智能文档回答助手 
-/home/kinuru/AI_Infra/Hello-Agent/hello-agents/agents/DocAssistant/base.py
+[PDF 学习助手代码](../agents/DocAssistant/base.py)
 + 功能： 快速定位 pdf 文件中的关键信息，作为一个完整的交互式学习助手
 + 目标： 一个基于 Gradio 的 Web 应用，使用 RAGTool 和 MemoryTool构建
 + 步骤：pdf文档处理 -> RAG检索问答 -> 记忆系统 -> 集成助手 -> 收集所有统计信息，生成报告
 
 #### 知识总结
-![alt text](image-4.png)
+![alt text](assets/image-4.png)

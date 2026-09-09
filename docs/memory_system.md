@@ -1,6 +1,6 @@
 ## 记忆与RAG系统架构设计 
 
-![alt text](image.png)
+![alt text](assets/image.png)
 
 HelloAgents记忆系统
 │
@@ -70,12 +70,12 @@ hello-agents/
 └──
 
 ### 记忆系统流程:
-![alt text](image-1.png)
+![alt text](assets/image-1.png)
 
 对于 HelloAgents的完整记忆系统, 核心思想是模仿人类大脑处理不同类型信息的方式，将记忆划分为多个专门的模块。
 
 主要分为: 添加记忆，搜索记忆，管理模块。
 
-![alt text](image-2.png)
+![alt text](assets/image-2.png)
 
 
